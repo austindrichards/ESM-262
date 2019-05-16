@@ -24,20 +24,20 @@ Parcels_raw <-
 
 
 ```{r}
-#parse specificiations taken from PDF, making sure nas are read collectly, only specifying parse for those taht aren't character (default set above)
+#parse specificiations taken from PDF, making sure nas are read collectly, only specifying parse for those that aren't character (default set above)
 
-Parcels <- transmute(Parcels_raw, na = 'NA', 
-  Situs1 = Situs1, na = 'NA', 
-  Situs2 = Situs2,na = 'NA', 
-  Acreage = parse_double(Acreage),na = 'NA', 
-  UseCode = UseCode,na = 'NA', 
-  NonTaxCode = NonTaxCode,na = 'NA', 
-  AgPres = AgPres,na = 'NA', 
-  Land_Value = parse_double(LandValue),na = 'NA', 
-  Net_Impr = parse_double(Net_Impr),na = 'NA', 
-  Net_Av = parse_double(Net_AV),na = 'NA', 
-  M_Address1 = M_Address1, na = 'NA', 
-  M_Address2 = M_Address2, na = 'NA'
+Parcels <- transmute(Parcels_raw, 
+  Situs1 =  parse_character(Situs1, na = 'NA'), 
+  Situs2 = parse_character(Situs2,na = 'NA'), 
+  Acreage = parse_double(Acreage,na = 'NA'), 
+  UseCode = parse_character(UseCode, na = 'NA'), 
+  NonTaxCode = parse_character(NonTaxCode,na = 'NA'), 
+  AgPres = parse_character(AgPres, na = 'NA'), 
+  Land_Value = parse_double(LandValue,na = 'NA'), 
+  Net_Impr = parse_double(Net_Impr,na = 'NA'), 
+  Net_Av = parse_double(Net_AV,na = 'NA'), 
+  M_Address1 = parse_character(M_Address1, na = 'NA'), 
+  M_Address2 = parse_character(M_Address2, na = 'NA')
 )
 
 ```
@@ -123,8 +123,8 @@ sum(Preserves$Acreage)
 i.e., as if the entire county were a single parcel.
 
 ```{r}
-total_value<- filter(Parcels, Land_Value != 'NA') 
- value <- sum(total_value$Land_Value)
+total_value<- filter(Parcels, Net_Av != 'NA') 
+ value <- sum(total_value$Net_Av)
 
 total_acreage <-filter(Parcels, Acreage != 'NA') 
 acreage <- sum(total_acreage$Acreage)
@@ -135,7 +135,7 @@ value/acreage
 
 ```
 
-$16749.96
+$3402.63
 
 ```{r}
 

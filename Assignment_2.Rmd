@@ -1,0 +1,249 @@
+---
+title: "Assignment 2"
+author: "Austin Richards"
+date: "5/16/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(DBI)
+library(RSQLite)
+
+```
+
+
+```{r}
+Parcels_raw <- 
+  
+  read_delim("parcels.csv.zip",
+             delim = ",",
+             col_types = cols(.default = col_character()))
+```
+
+
+
+```{r}
+#parse specificiations taken from PDF, making sure nas are read collectly, only specifying parse for those that aren't character (default set above)
+
+Parcels <- transmute(Parcels_raw, 
+  Situs1 =  parse_character(Situs1, na = 'NA'), 
+  Situs2 = parse_character(Situs2,na = 'NA'), 
+  Acreage = parse_double(Acreage,na = 'NA'), 
+  UseCode = parse_character(UseCode, na = 'NA'), 
+  NonTaxCode = parse_character(NonTaxCode,na = 'NA'), 
+  AgPres = parse_character(AgPres, na = 'NA'), 
+  Land_Value = parse_double(LandValue,na = 'NA'), 
+  Net_Impr = parse_double(Net_Impr,na = 'NA'), 
+  Net_Av = parse_double(Net_AV,na = 'NA'), 
+  M_Address1 = parse_character(M_Address1, na = 'NA'), 
+  M_Address2 = parse_character(M_Address2, na = 'NA')
+)
+
+```
+
+```{r}
+#confiriming R is recognizing my NAs as NAs
+
+any(is.na(Parcels))
+```
+
+
+```{r}
+df <- as.tibble(Parcels)
+```
+
+```{r}
+UseCode <- read_delim("UseCodes.csv", delim = "|")
+```
+
+
+```{r}
+
+db <- dbConnect(RSQLite::SQLite(), "parcels.db")
+```
+
+
+```{r}
+dbWriteTable(db, "Parcel", df)
+```
+
+
+
+1) What are the 10 most-frequently-occuring land uses (in descending order)?
+Hint: Load the UseCodes into a separate tibble, then join it to the parcels tibble.
+
+```{sql connection= db}
+
+select UseCode from Parcel
+
+```
+
+
+
+
+```{r}
+Usecodes<- read_delim("UseCodes.csv", delim = "|")
+```
+
+```{r}
+Parcels <- left_join(Usecodes, Parcels, by=("UseCode"))
+
+```
+
+
+```{r}
+most_common <- table(Parcels$CodeDesc) %>% 
+  as.data.frame() %>% 
+  top_n(11,Freq) %>% #Using 11 because when using 10, one of the most common occurences is "no descripiton available"
+  arrange(desc(Freq)) 
+
+colnames(most_common) <- c("Landuse Type", "Occurences")
+
+most_common
+ 
+
+
+```
+
+Most Common Landuse Types in Our Dataset:
+
+1) Single Family Residence	73915	
+2) Residential Rentals	4985	
+3) Sited inside M/H Park (Rented)	4540	
+4) Vacant Land	4382	
+5) Condo	3791	
+6) Double Wide New Const. (after 7/1/80)	1718	
+7) Apartments (5 or more units)	1486	
+8) Rec. Area - 5-6 class, 1000-1300 sq.ft.	1423	
+9) Planned Unit Development	1124
+10) Retail Stores, Single Story	1024	
+
+
+No Description Available	1136	
+
+
+
+2) How many acres are in agricultural preserves?
+Assume agricultural preserves are indicated by non-NA values for AgPres.
+
+
+```{r}
+Preserves <- filter(Parcels, AgPres != 'NA')
+
+sum(Preserves$Acreage)
+```
+
+ 549563.4
+ 
+ 
+3)What is the mean net assessed value per acre of the entire county?
+i.e., as if the entire county were a single parcel.
+
+```{r}
+total_value<- filter(Parcels, Net_Av != 'NA') 
+ value <- sum(total_value$Net_Av)
+
+total_acreage <-filter(Parcels, Acreage != 'NA') 
+acreage <- sum(total_acreage$Acreage)
+
+value/acreage
+
+
+
+```
+
+$3402.63
+
+```{r}
+
+##I want to maake sure I didn't miss any values after removing NAs (i.e. if one row had an NA for Land Value but not for Acreage, or vice-versa, the answer above would not hold
+
+check_1 <- subset(Parcels, is.na(Acreage)) 
+check_2 <- subset(Parcels, is.na(Land_Value)) 
+
+summary(check_1$Land_Value)
+summary(check_2$Land_Value)
+
+#confirmed-we're good, answer above is correct
+```
+
+
+4)What is the total net assessed value of all non-taxable parcels?
+Assume non-taxable parcels are indicated by non-NA values for NonTaxCode.
+
+```{r}
+non_taxable <- filter(Parcels, NonTaxCode != 'NA')
+sum(non_taxable$Net_Av)
+
+#net assesed value represented by column Net_Av (I know this from .pdf file)
+```
+$1093026091
+
+5) What are the 10 largest property holders, by acreage?
+Use the complete mailing address for tax statements as a proxy for the parcel owner. Ignore parcels where either component of the address is NA.
+
+
+aggregate_field <- aggregate(value_perha ~ id + ag4a_04, FUN = sum, data=joined_df)
+
+```{r}
+complete_address <- filter(Parcels, M_Address1 != 'NA' & M_Address2 != 'NA') %>% 
+  unite(Address_Full, c("M_Address1", "M_Address2"), sep = " ", remove = TRUE) #filtering observations without a complete address to comply with second part of instructionsm and then making a new column which has full address  (M1 and M2 ombined)
+
+
+
+
+ag_acre <- aggregate(Acreage ~ Address_Full, FUN = sum, data = complete_address)  #aggregating the acreage owned by each landowner
+
+
+top_prop_acre <- ag_acre %>% 
+top_n(10, Acreage) %>% 
+arrange(desc(Acreage)) #taking top 10 acreage holders and placing them in decending order
+
+top_prop_acre #answer
+```
+
+785 MARKET ST SAN FRANCISCO CA 94103-	37860.00
+166 PARADISE RD SANTA BARBARA CA 93105-	30109.71
+PO BOX 573 LAKE ARROWHEAD CA 92352-	24262.89
+870 MARKET ST 1100 SAN FRANCISCO CA 94102-	23833.67
+2491 BULL CANYON RD SANTA MARIA CA 93454-	18594.80
+201 MISSION ST 4TH FLR SAN FRANCISCO CA 94105 1831-	16640.00
+PO BOX 340 SAN LUCAS CA 93954-	15373.61
+PO BOX 9 SAN JUAN CAPISTRANO CA 92693-	10170.02
+2300 EAST VALLEY RD SANTA BARBARA CA 93108-	9800.95
+PO BOX 338 SANTA YNEZ CA 93460-	9189.45
+
+
+
+6)What are the 10 largest property holders, by net assessed value?
+
+
+```{r}
+
+
+
+ag_val <- aggregate(Net_Av ~ Address_Full, FUN = sum, data = complete_address)  #aggregating the anet assesed value owned by each address
+
+
+top_prop_value <- ag_val %>% 
+top_n(10, Net_Av) %>% 
+arrange(desc(Net_Av)) #taking top 10 acreage holders and placing them in decending order
+
+top_prop_value #answer
+```
+
+
+737 GARDEN ST SANTA BARBARA CA 93101:	242575885
+735 ANACAPA ST SANTA BARBARA CA 93101:	190784490
+21 E VICTORIA ST 200 SANTA BARBARA CA 93101:	179642731
+PO BOX 20130 SANTA BARBARA CA 93120 0130:	177735038
+280 CHESTNUT WESTMONT IL 60559:	157323864
+PO BOX 660248 DALLAS TX 75266 0248:	151925292
+1260 CHANNEL DR SANTA BARBARA CA 93105:	120001340
+645 FIFTH AVE 8 NEW YORK NY 10022:	118000000
+500 STEVENS AVE 100 SOLANA BEACH CA 92075:	107926369
+2235 FARADAY AVE O CARLSBAD CA 92008:	104533906
+
