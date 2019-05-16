@@ -59,6 +59,13 @@ df <- as.tibble(Parcels)
 UseCode <- read_delim("UseCodes.csv", delim = "|")
 ```
 
+```{r}
+
+df <- left_join(UseCode, df, by=("UseCode"))
+
+```
+
+
 
 ```{r}
 
@@ -67,31 +74,21 @@ db <- dbConnect(RSQLite::SQLite(), "parcels.db")
 
 
 ```{r}
-dbWriteTable(db, "Parcel", df)
+dbWriteTable(db, "Parcel", df, overwrite = TRUE)
 ```
-
-
 
 1) What are the 10 most-frequently-occuring land uses (in descending order)?
 Hint: Load the UseCodes into a separate tibble, then join it to the parcels tibble.
 
 ```{sql connection= db}
 
-select UseCode from Parcel
+select * from Parcel
 
 ```
 
+#Now I have a database with joined file, but i joined UseCodes and Parcels in R.....
 
 
-
-```{r}
-Usecodes<- read_delim("UseCodes.csv", delim = "|")
-```
-
-```{r}
-Parcels <- left_join(Usecodes, Parcels, by=("UseCode"))
-
-```
 
 
 ```{r}
