@@ -5,6 +5,7 @@ date: "5/16/2019"
 output: html_document
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -72,39 +73,29 @@ db <- dbConnect(RSQLite::SQLite(), "parcels.db")
 
 
 ```{r}
+#Overwrite = true so everything is replicable
+
 dbWriteTable(db, "Parcel", Parcels, overwrite = TRUE)
-dbWriteTable(db, "UseCode", UseCode, overwrite = TRUE)
+dbWriteTable(db, "Codes", UseCode, overwrite = TRUE)
 ```
 
 1) What are the 10 most-frequently-occuring land uses (in descending order)?
-Hint: Load the UseCodes into a separate tibble, then join it to the parcels tibble.
 
-
-SELECT * FROM Site JOIN Visited ON Site.name = Visited.site;
+SELECT name,COUNT(*) as count FROM tablename GROUP BY name ORDER BY count DESC;
 
 ```{sql connection= db}
 
-SELECT * FROM Parcels Join UseCode ON UseCode = UseCode
-
-```
-
-
-
-
-
-```{r}
-most_common <- table(Parcels$CodeDesc) %>% 
-  as.data.frame() %>% 
-  top_n(11,Freq) %>% #Using 11 because when using 10, one of the most common occurences is "no descripiton available"
-  arrange(desc(Freq)) 
-
-colnames(most_common) <- c("Landuse Type", "Occurences")
-
-most_common
- 
+SELECT CodeDesc, COUNT(CodeDesc) AS total_parcels
+FROM Parcel JOIN Codes ON Parcel.UseCode = Codes.UseCode 
+GROUP BY Parcel.UseCode
+ORDER BY total_parcels DESC
+LIMIT 10
 
 
 ```
+
+
+
 
 Most Common Landuse Types in Our Dataset:
 
@@ -120,18 +111,18 @@ Most Common Landuse Types in Our Dataset:
 10) Retail Stores, Single Story	1024	
 
 
-No Description Available	1136	
-
 
 
 2) How many acres are in agricultural preserves?
 Assume agricultural preserves are indicated by non-NA values for AgPres.
 
 
-```{r}
-Preserves <- filter(Parcels, AgPres != 'NA')
+```{sql connection= db}
 
-sum(Preserves$Acreage)
+SELECT SUM (Acreage)
+FROM parcels
+WHERE AgPres IS NOT NULL 
+
 ```
 
  549563.4
@@ -140,68 +131,55 @@ sum(Preserves$Acreage)
 3)What is the mean net assessed value per acre of the entire county?
 i.e., as if the entire county were a single parcel.
 
-```{r}
-total_value<- filter(Parcels, Net_Av != 'NA') 
- value <- sum(total_value$Net_Av)
 
-total_acreage <-filter(Parcels, Acreage != 'NA') 
-acreage <- sum(total_acreage$Acreage)
+```{sql connection= db}
 
-value/acreage
-
-
+SELECT SUM (NET_AV)/SUM(Acreage)
+FROM parcels
+WHERE Acreage IS NOT NULL
+AND NET_AV IS NOT NULL
 
 ```
 
 $3402.63
 
-```{r}
-
-##I want to maake sure I didn't miss any values after removing NAs (i.e. if one row had an NA for Land Value but not for Acreage, or vice-versa, the answer above would not hold
-
-check_1 <- subset(Parcels, is.na(Acreage)) 
-check_2 <- subset(Parcels, is.na(Land_Value)) 
-
-summary(check_1$Land_Value)
-summary(check_2$Land_Value)
-
-#confirmed-we're good, answer above is correct
-```
-
 
 4)What is the total net assessed value of all non-taxable parcels?
 Assume non-taxable parcels are indicated by non-NA values for NonTaxCode.
 
-```{r}
-non_taxable <- filter(Parcels, NonTaxCode != 'NA')
-sum(non_taxable$Net_Av)
 
-#net assesed value represented by column Net_Av (I know this from .pdf file)
+
+```{sql connection= db}
+
+SELECT SUM (NET_AV)
+FROM Parcels
+WHERE NonTaxCode
+IS NOT NULL
+
+
 ```
+
 $1093026091
 
 5) What are the 10 largest property holders, by acreage?
 Use the complete mailing address for tax statements as a proxy for the parcel owner. Ignore parcels where either component of the address is NA.
 
 
-aggregate_field <- aggregate(value_perha ~ id + ag4a_04, FUN = sum, data=joined_df)
-
-```{r}
-complete_address <- filter(Parcels, M_Address1 != 'NA' & M_Address2 != 'NA') %>% 
-  unite(Address_Full, c("M_Address1", "M_Address2"), sep = " ", remove = TRUE) #filtering observations without a complete address to comply with second part of instructionsm and then making a new column which has full address  (M1 and M2 ombined)
+```{sql connection=db}
 
 
+SELECT M_Address1, M_Address2, SUM(Acreage) AS total_acreage
+FROM parcels
+WHERE M_Address1 IS NOT NULL
+AND M_Address2 IS NOT NULL
+GROUP BY M_Address1, M_Address2
+ORDER BY total_acreage DESC
+LIMIT 10
 
-
-ag_acre <- aggregate(Acreage ~ Address_Full, FUN = sum, data = complete_address)  #aggregating the acreage owned by each landowner
-
-
-top_prop_acre <- ag_acre %>% 
-top_n(10, Acreage) %>% 
-arrange(desc(Acreage)) #taking top 10 acreage holders and placing them in decending order
-
-top_prop_acre #answer
 ```
+
+
+
 
 785 MARKET ST SAN FRANCISCO CA 94103-	37860.00
 166 PARADISE RD SANTA BARBARA CA 93105-	30109.71
@@ -218,19 +196,17 @@ PO BOX 338 SANTA YNEZ CA 93460-	9189.45
 
 6)What are the 10 largest property holders, by net assessed value?
 
+```{sql connection=db}
 
-```{r}
+SELECT M_Address1, M_Address2, SUM(Net_AV) AS total_value
+FROM parcels
+WHERE M_Address1 IS NOT NULL
+AND M_Address2 IS NOT NULL 
+AND Net_AV IS NOT NULL
+GROUP BY M_Address1, M_Address2
+ORDER BY total_value DESC
+LIMIT 10
 
-
-
-ag_val <- aggregate(Net_Av ~ Address_Full, FUN = sum, data = complete_address)  #aggregating the anet assesed value owned by each address
-
-
-top_prop_value <- ag_val %>% 
-top_n(10, Net_Av) %>% 
-arrange(desc(Net_Av)) #taking top 10 acreage holders and placing them in decending order
-
-top_prop_value #answer
 ```
 
 
