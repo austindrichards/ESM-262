@@ -27,7 +27,6 @@ Parcels_raw <-
 
 
 ```{r}
-#parse specificiations taken from PDF, making sure nas are read collectly, only specifying parse for those that aren't character (default set above)
 
 Parcels <- transmute(Parcels_raw, 
   Situs1 =  parse_character(Situs1, na = 'NA'), 
@@ -60,11 +59,6 @@ Parcels <- as.tibble(Parcels)
 UseCode <- read_delim("UseCodes.csv", delim = "|")
 ```
 
-```{r}
-
-#Parcels <- left_join(UseCode, Parcels, by=("UseCode"))
-
-```
 
 ```{r}
 
@@ -85,10 +79,10 @@ SELECT name,COUNT(*) as count FROM tablename GROUP BY name ORDER BY count DESC;
 
 ```{sql connection= db}
 
-SELECT CodeDesc, COUNT(CodeDesc) AS total_parcels
+SELECT CodeDesc, COUNT(CodeDesc) AS parcels_quant
 FROM Parcel JOIN Codes ON Parcel.UseCode = Codes.UseCode 
 GROUP BY Parcel.UseCode
-ORDER BY total_parcels DESC
+ORDER BY parcels_quant DESC
 LIMIT 10
 
 
@@ -120,7 +114,7 @@ Assume agricultural preserves are indicated by non-NA values for AgPres.
 ```{sql connection= db}
 
 SELECT SUM (Acreage)
-FROM parcels
+FROM Parcel
 WHERE AgPres IS NOT NULL 
 
 ```
@@ -135,7 +129,7 @@ i.e., as if the entire county were a single parcel.
 ```{sql connection= db}
 
 SELECT SUM (NET_AV)/SUM(Acreage)
-FROM parcels
+FROM Parcel
 WHERE Acreage IS NOT NULL
 AND NET_AV IS NOT NULL
 
@@ -146,7 +140,6 @@ $3402.63
 
 4)What is the total net assessed value of all non-taxable parcels?
 Assume non-taxable parcels are indicated by non-NA values for NonTaxCode.
-
 
 
 ```{sql connection= db}
@@ -168,12 +161,12 @@ Use the complete mailing address for tax statements as a proxy for the parcel ow
 ```{sql connection=db}
 
 
-SELECT M_Address1, M_Address2, SUM(Acreage) AS total_acreage
-FROM parcels
+SELECT M_Address1, M_Address2, SUM(Acreage) AS Total_Acreage
+FROM Parcels
 WHERE M_Address1 IS NOT NULL
 AND M_Address2 IS NOT NULL
 GROUP BY M_Address1, M_Address2
-ORDER BY total_acreage DESC
+ORDER BY Total_Acreage DESC
 LIMIT 10
 
 ```
@@ -198,13 +191,13 @@ PO BOX 338 SANTA YNEZ CA 93460-	9189.45
 
 ```{sql connection=db}
 
-SELECT M_Address1, M_Address2, SUM(Net_AV) AS total_value
-FROM parcels
+SELECT M_Address1, M_Address2, SUM(Net_AV) AS Total_Value
+FROM Parcels
 WHERE M_Address1 IS NOT NULL
 AND M_Address2 IS NOT NULL 
 AND Net_AV IS NOT NULL
 GROUP BY M_Address1, M_Address2
-ORDER BY total_value DESC
+ORDER BY Total_Value DESC
 LIMIT 10
 
 ```
