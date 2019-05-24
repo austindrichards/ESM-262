@@ -1,0 +1,78 @@
+---
+title: "Assignment 3"
+author: "Austin Richards"
+date: "5/24/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+```{r}
+source("autopowerhw.R") 
+```
+
+Policy I- Reduce Rolling Coefficient by 1/2-
+
+
+```{r}
+
+set.seed(69)
+
+nsample = 1000 #assume we're gonna sample 1000 cars
+
+speeds = rnorm(mean=25, sd=4, n=nsample) #Power is partly a function of speed, let's assume the speed a car is travelling is normally distributed around a mean of 25 m/s, with a standard deviaiton of 4 m/s
+
+possible_cars = data.frame(mass=c(31000,45000,38000,48000), area = c(25,30,22,36)) #data frame for possible cars of varying mass and area (I'm not sure if these numbers are the same as the ones from class, I added a car and may have changed them but can manipulate here to impact answer easily!)
+
+possible_cars$prob = c(0.3, 0.3, 0.2, 0.2) #now adding assumed probability of each car appearing in given sample observation (proportional representation of each model on the road (once again, not sure if these are the "correct" probabilities, assuming your're grading on the process here)
+
+M = 100/3.6  #Mean speed is 100 kmh, here converting to mps
+nsample = 1000 #sample of 1000
+speeds = rnorm(mean=M, sd=0.1*M, nsample) #normal distribution around the mean with a standard deviation of 10% of the mean
+summary(speeds)
+
+
+possible_cars$row = seq(from=1, to=nrow(possible_cars)) #giving each posible car an ID
+whichcar = base::sample(possible_cars$row, size=nsample, prob=possible_cars$prob, replace=TRUE) #sampling car types based on probabilities specified for each car type
+
+results = data.frame(speed=speeds, power=NA) #data frame from speeds, power is empty for now
+results$mass = possible_cars$mass[whichcar] #imputing mass observations from sample of cars
+results$area = possible_cars$area[whichcar] #imputing area observations from sample of cars
+
+
+results$power = rollreduce(A=results$area, V=results$speed, M=results$mass)
+#deriving result, here using 'roll reduce' function which reduced drag by 50%
+
+```
+
+
+
+Policy II- reduce the mean speed from 100 km/h to 80 km/h (still with 10% standard deviation)
+
+```{r}
+##repeating the EXACT same as above, except this time, using the normal function which did not reduce drag, and changing average speed from 100 to 80 
+
+set.seed(69)
+
+M2 = 80/3.6  #Mean speed is now 80 kph (differet than above), here converting to mps
+speeds2 = rnorm(mean=M2, sd=0.1*M2, nsample) #normal distribution around the mean with a standard deviation of 10% of the mean
+summary(speeds2)
+
+
+results2 = data.frame(speed=speeds, power=NA) 
+results2$mass = possible_cars$mass[whichcar] 
+results2$area = possible_cars$area[whichcar] 
+
+results2$power = autopwr(A=results$area, V=results$speed, M=results$mass)
+#deriving result, here using  the function I called 'autopwr' which is the same as the one from class
+
+```
+
+
+Result:
+We learned that the second policy (reducing average speed from 100 to 80kph) is a more efficient way to reduce power. The mean power from our sample of 1000 was 22.16 vs 27.69 for policy 1. 
+
