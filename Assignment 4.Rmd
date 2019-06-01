@@ -1,0 +1,47 @@
+---
+title: "Assignment 4"
+author: "Austin Richards"
+date: "5/31/2019"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+
+#creating example data, lets use fish from the SB channel
+
+prices <- data.frame(
+  fish =c("Anchovy", "Black Cod", "Bonito", "Halibut", "White Seabass", "Cabezon", "Rockfish"),
+  price = c(20, 70, 72, 85, 90, 60, 52))
+
+
+#lets assume locations are from one of 8 quadrants on a map
+location <- c("a1", "a2", "a3", "a4", "b1", "b2", "b3", "b4")
+fish =c("Anchovy", "Black Cod", "Bonito", "Halibut", "White Seabass", "Cabezon", "Rockfish")
+
+```
+
+```{r}
+#creating harvest data, simulating catch
+
+set.seed(69)
+
+harvest <- crossing(fish, location) %>%
+  mutate(catch = runif(min = 0, max = 10000, n = nrow(.)))
+
+harvest$fish <- as.factor(harvest$fish)
+harvest$location <- as.factor(harvest$location)
+
+```
+
+
+```{r}
+#now with table inputs, let me run my function. Function takes 3 inputs: "prices", "harvest" and "plot", if not specified, show plot defaults to FALSE. Function will only work if input tables have the exact same labels as mine (lower case columns for fish, location and catch, with lower case titles "harvest" and "prices"). I'm assuming assignment instructions "most common" meant by volume. I did not include units like dollar or KGs as these are arbitrary for this example, but should be included if this were real
+
+calculate_fishery(prices = prices, harvest = harvest, plot = TRUE)
+```
+
